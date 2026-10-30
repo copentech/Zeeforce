@@ -1,0 +1,6 @@
+{
+  "name": "Zayed SalesForce",
+  "description": "Enterprise Sales, Inventory, Commission & Delivery Management System with 3-Layer Stock Alerts, Multi-Mode Commissions, Biometric Auth, and Branded Commission Slips",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
