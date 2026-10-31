@@ -1,8 +1,11 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Close
@@ -61,27 +65,31 @@ import com.example.data.model.Product
 import java.text.NumberFormat
 import java.util.Locale
 
+import com.example.data.repository.OrderBookingRepository
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+
+import androidx.activity.compose.BackHandler
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun InventoryCatalogScreen(
-    products: List<Product>,
-    onAddProduct: (
-        name: String,
-        category: String,
-        unit: String,
-        minPrice: Double,
-        maxPrice: Double,
-        basePrice: Double,
-        stockQty: Int,
-        sku: String
-    ) -> Unit,
+    repository: OrderBookingRepository,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    BackHandler { onBack() }
+    val coroutineScope = rememberCoroutineScope()
+    val products by repository.allProducts.collectAsState(initial = emptyList())
+    val companyProfile by repository.companyProfile.collectAsState()
+    
     var searchQuery by remember { mutableStateOf("") }
     var showAddProductDialog by remember { mutableStateOf(false) }
 
-    val currencyFormatter = remember {
-        NumberFormat.getCurrencyInstance(Locale("en", "KE")).apply {
-            currency = java.util.Currency.getInstance("KES")
+    val currencyFormatter = remember(companyProfile.currencyCode) {
+        NumberFormat.getCurrencyInstance().apply {
+            currency = java.util.Currency.getInstance(companyProfile.currencyCode)
         }
     }
 
@@ -92,10 +100,41 @@ fun InventoryCatalogScreen(
                 it.sku.contains(searchQuery, ignoreCase = true)
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    androidx.compose.material3.Scaffold(
+        topBar = {
+            androidx.compose.material3.TopAppBar(
+                title = { Text("Inventory Catalog") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    Image(
+                        painter = painterResource(id = R.drawable.zayed_logo),
+                        contentDescription = "Zayed Corporate Logo",
+                        modifier = Modifier
+                            .size(32.dp)
+                            .padding(end = 12.dp)
+                    )
+                }
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { showAddProductDialog = true },
+                modifier = Modifier.testTag("fab_add_product"),
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
+                Icon(imageVector = Icons.Default.Add, contentDescription = "Add Product")
+            }
+        }
+    ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(innerPadding)
                 .padding(horizontal = 14.dp, vertical = 8.dp)
         ) {
             // Header
@@ -151,25 +190,29 @@ fun InventoryCatalogScreen(
                 }
             }
         }
-
-        FloatingActionButton(
-            onClick = { showAddProductDialog = true },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp)
-                .testTag("fab_add_product"),
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary
-        ) {
-            Icon(imageVector = Icons.Default.Add, contentDescription = "Add Product")
-        }
     }
 
     if (showAddProductDialog) {
         AddProductModalDialog(
             onDismiss = { showAddProductDialog = false },
             onSave = { name, cat, unit, minP, maxP, baseP, stock, sku ->
-                onAddProduct(name, cat, unit, minP, maxP, baseP, stock, sku)
+                coroutineScope.launch {
+                    val newProduct = Product(
+                        id = java.util.UUID.randomUUID().toString(),
+                        name = name,
+                        category = cat,
+                        unit = unit,
+                        minPrice = minP,
+                        maxPrice = maxP,
+                        basePrice = baseP,
+                        unitPrice = baseP,
+                        stockQty = stock,
+                        currentStock = stock,
+                        sku = sku,
+                        isInfiniteStock = stock == Product.INFINITE_STOCK
+                    )
+                    repository.createProduct(newProduct)
+                }
                 showAddProductDialog = false
             }
         )

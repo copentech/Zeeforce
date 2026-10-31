@@ -52,6 +52,9 @@ interface StaffDao {
     @Query("UPDATE staff_members SET commissionType = :type, commissionRate = :rate, fixedCommissionAmount = :amount WHERE id = :id")
     suspend fun updateCommissionSettings(id: String, type: String, rate: Double, amount: Double)
 
+    @Query("UPDATE staff_members SET isBiometricEnabled = :enabled WHERE id = :id")
+    suspend fun updateBiometricStatus(id: String, enabled: Boolean)
+
     @Query("SELECT COUNT(*) FROM staff_members")
     suspend fun getStaffCount(): Int
 }

@@ -20,7 +20,8 @@ object AdminReportPdfPrinter {
         context: Context,
         weeklyRevenue: Double,
         orderCount: Int,
-        lowStockProducts: List<Product>
+        lowStockProducts: List<Product>,
+        currencyCode: String = "USD"
     ): File? {
         try {
             val pdfDocument = PdfDocument()
@@ -30,7 +31,9 @@ object AdminReportPdfPrinter {
 
             val paint = Paint()
             val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-            val currencyFormat = NumberFormat.getCurrencyInstance(Locale.US)
+            val currencyFormat = NumberFormat.getCurrencyInstance().apply {
+                currency = java.util.Currency.getInstance(currencyCode)
+            }
 
             // Header Banner
             paint.color = Color.parseColor("#1E1B4B") // Dark Indigo
@@ -44,6 +47,14 @@ object AdminReportPdfPrinter {
             paint.textSize = 13f
             paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
             canvas.drawText("7-DAY REVENUE PERFORMANCE & INVENTORY ALERTS", 30f, 80f, paint)
+
+            try {
+                val logoBmp = android.graphics.BitmapFactory.decodeResource(context.resources, com.example.R.drawable.zayed_logo)
+                if (logoBmp != null) {
+                    val scaledLogo = android.graphics.Bitmap.createScaledBitmap(logoBmp, 70, 70, true)
+                    canvas.drawBitmap(scaledLogo, 495f, 20f, paint)
+                }
+            } catch (_: Exception) {}
 
             // Executive Summary Box
             paint.color = Color.parseColor("#F3F4F6")

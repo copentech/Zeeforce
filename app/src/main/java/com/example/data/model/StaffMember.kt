@@ -25,6 +25,7 @@ data class StaffMember(
     val secondaryPin: String = "1234",
     val isBiometricEnabled: Boolean = true,
     val isTemporaryPassword: Boolean = false,
+    val tempPassword: String = password,
     val tempPasswordExpiresAt: Long = 0L,
     val mustChangePassword: Boolean = false,
     val isActive: Boolean = true,
@@ -48,15 +49,32 @@ data class StaffMember(
     fun isSuspended(): Boolean = accountStatus.equals("SUSPENDED", ignoreCase = true) || !isActive
     fun isTerminated(): Boolean = accountStatus.equals("TERMINATED", ignoreCase = true)
 
-    val tempPassword: String
-        get() = password
-
     val isTempPasswordValid: Boolean
-        get() = isTemporaryPassword && System.currentTimeMillis() <= tempPasswordExpiresAt
+        get() = isTempPasswordValid(System.currentTimeMillis())
 
+    fun isTempPasswordValid(currentTime: Long = System.currentTimeMillis()): Boolean =
+        isTemporaryPassword && currentTime <= tempPasswordExpiresAt
 
     val isTempPasswordExpired: Boolean
         get() = isTemporaryPassword && System.currentTimeMillis() > tempPasswordExpiresAt
+
+    fun hasModuleAccess(module: StaffModule): Boolean {
+        if (isAdmin) return true
+        return when (module) {
+            StaffModule.INVENTORY -> canAccessInventory
+            StaffModule.ORDERS -> canAccessOrders
+            StaffModule.CUSTOMERS -> canAccessCustomers
+            StaffModule.STAFF -> canManageStaff
+            StaffModule.DELIVERY -> canScheduleDelivery
+        }
+    }
+
+    fun calculateCommission(orderAmount: Double): Double {
+        return when (commissionType) {
+            "FIXED" -> fixedCommissionAmount
+            else -> orderAmount * commissionRate
+        }
+    }
 
     fun updateAccountStatus(status: String): StaffMember = copy(accountStatus = status)
 

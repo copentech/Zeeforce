@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,40 +15,74 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.data.model.CommissionRecord
 import com.example.data.model.CommissionType
-import com.example.data.repository.SalesForceRepository
 import com.example.util.CommissionPdfPrinter
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale
 
+import com.example.data.repository.OrderBookingRepository
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CommissionSlipsScreen(
-    repository: SalesForceRepository,
-    salesRepId: String = "rep_101",
-    salesRepName: String = "Ahmad Al-Mansoor"
+    repository: OrderBookingRepository,
+    salesRepId: String = "",
+    salesRepName: String = ""
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val allStaff by repository.allStaff.collectAsState(initial = emptyList())
+    val activeStaff by repository.activeStaff.collectAsState()
 
-    val commissions by repository.getCommissionsForRep(salesRepId).collectAsState(initial = emptyList())
+    var selectedStaffMember by remember(allStaff, activeStaff, salesRepId) {
+        mutableStateOf(
+            allStaff.firstOrNull { it.id == salesRepId }
+                ?: if (activeStaff.id.isNotEmpty()) activeStaff else allStaff.firstOrNull()
+        )
+    }
+
+    val currentRepId = selectedStaffMember?.id ?: salesRepId.ifEmpty { activeStaff.id.ifEmpty { "staff-owner" } }
+    val currentRepName = selectedStaffMember?.name ?: salesRepName.ifEmpty { activeStaff.name.ifEmpty { "Executive Administrator" } }
+
+    val commissions by repository.getCommissionsForRep(currentRepId).collectAsState(initial = emptyList())
+    val companyProfile by repository.companyProfile.collectAsState()
 
     var showAddCommissionModal by remember { mutableStateOf(false) }
+    var showStaffPickerDropdown by remember { mutableStateOf(false) }
 
     val totalCommission = remember(commissions) {
         commissions.sumOf { it.calculatedCommission }
     }
 
-    val currencyFormat = NumberFormat.getCurrencyInstance(Locale.US)
+    val currencyFormat = remember(companyProfile.currencyCode) {
+        NumberFormat.getCurrencyInstance().apply {
+            currency = java.util.Currency.getInstance(companyProfile.currencyCode)
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Commission Slips & Earnings", fontWeight = FontWeight.Bold) }
+                title = { 
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            painter = painterResource(id = R.drawable.zayed_logo),
+                            contentDescription = "Zayed Corporate Logo",
+                            modifier = Modifier
+                                .size(34.dp)
+                                .padding(end = 8.dp)
+                                .testTag("commissions_top_bar_logo")
+                        )
+                        Text("Commission Slips & Earnings", fontWeight = FontWeight.Bold)
+                    }
+                }
             )
         },
         floatingActionButton = {
@@ -72,33 +107,80 @@ fun CommissionSlipsScreen(
                 modifier = Modifier.fillMaxWidth().testTag("commission_earnings_card")
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = "Representative: $salesRepName",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Total Accumulated Earnings",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Text(
-                        text = currencyFormat.format(totalCommission),
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Representative: $currentRepName",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            if (allStaff.size > 1) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Box {
+                                    OutlinedButton(
+                                        onClick = { showStaffPickerDropdown = true },
+                                        modifier = Modifier.testTag("btn_switch_rep")
+                                    ) {
+                                        Text("Select Staff / Rep", fontSize = 11.sp)
+                                    }
+                                    DropdownMenu(
+                                        expanded = showStaffPickerDropdown,
+                                        onDismissRequest = { showStaffPickerDropdown = false }
+                                    ) {
+                                        allStaff.forEach { staff ->
+                                            DropdownMenuItem(
+                                                text = { 
+                                                    Column {
+                                                        Text(staff.name, fontWeight = FontWeight.Bold)
+                                                        Text("${staff.customRoleLabel} • ${staff.email}", style = MaterialTheme.typography.labelSmall)
+                                                    }
+                                                },
+                                                onClick = {
+                                                    selectedStaffMember = staff
+                                                    showStaffPickerDropdown = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Total Accumulated Earnings",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Text(
+                                text = currencyFormat.format(totalCommission),
+                                style = MaterialTheme.typography.headlineLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Image(
+                            painter = painterResource(id = R.drawable.zayed_logo),
+                            contentDescription = "Zayed Logo",
+                            modifier = Modifier
+                                .size(54.dp)
+                                .padding(start = 8.dp)
+                                .testTag("commissions_header_logo")
+                        )
+                    }
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Button(
                         onClick = {
                             CommissionPdfPrinter.generateCommissionSlip(
                                 context = context,
-                                salesRepName = salesRepName,
-                                salesRepId = salesRepId,
-                                records = commissions
+                                salesRepName = currentRepName,
+                                salesRepId = currentRepId,
+                                records = commissions,
+                                currencyCode = companyProfile.currencyCode
                             )
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
@@ -191,8 +273,8 @@ fun CommissionSlipsScreen(
 
                     coroutineScope.launch {
                         repository.recordCommission(
-                            salesRepId = salesRepId,
-                            salesRepName = salesRepName,
+                            salesRepId = currentRepId,
+                            salesRepName = currentRepName,
                             orderId = orderIdText,
                             orderAmount = amount,
                             type = selectedType,

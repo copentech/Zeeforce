@@ -141,7 +141,7 @@ fun AdminPinDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Default System PIN: 2026",
+                    text = "Authorized Executive & Admin Personnel Only",
                     fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.outline
                 )

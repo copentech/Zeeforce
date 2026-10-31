@@ -2,8 +2,11 @@ package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -49,6 +52,8 @@ fun AdminDashboardModuleScreen(
     val cardNavy = Color(0xFF1E293B)
     val borderNavy = Color(0xFF334155)
 
+    androidx.activity.compose.BackHandler { onBack() }
+
     if (!isPinVerified) {
         // Dedicated Security Screen prompting for 5-digit Admin PIN (22026)
         Box(
@@ -75,17 +80,17 @@ fun AdminDashboardModuleScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(64.dp)
+                            .size(72.dp)
                             .clip(CircleShape)
                             .background(deepNavy)
-                            .border(2.dp, imperialGold, CircleShape),
+                            .border(2.dp, imperialGold, CircleShape)
+                            .padding(8.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Security,
-                            contentDescription = null,
-                            tint = imperialGold,
-                            modifier = Modifier.size(32.dp)
+                        Image(
+                            painter = painterResource(id = R.drawable.zayed_logo),
+                            contentDescription = "Zayed Corporate Emblem",
+                            modifier = Modifier.fillMaxSize()
                         )
                     }
 
@@ -101,7 +106,7 @@ fun AdminDashboardModuleScreen(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "Enter 5-digit Admin PIN (22026) to access Secure Admin Module & Activity Logs",
+                        text = "Enter your Executive Admin PIN to access Audit Trail & Activity Logs",
                         fontSize = 12.sp,
                         color = Color.Gray,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -112,7 +117,7 @@ fun AdminDashboardModuleScreen(
                     OutlinedTextField(
                         value = pinInput,
                         onValueChange = { if (it.length <= 8) pinInput = it },
-                        label = { Text("Admin PIN (e.g. 22026)") },
+                        label = { Text("Admin PIN") },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
@@ -211,6 +216,15 @@ fun AdminDashboardModuleScreen(
                         IconButton(onClick = onBack, modifier = Modifier.testTag("admin_dashboard_back")) {
                             Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = imperialGold)
                         }
+                    },
+                    actions = {
+                        Image(
+                            painter = painterResource(id = R.drawable.zayed_logo),
+                            contentDescription = "Zayed Corporate Logo",
+                            modifier = Modifier
+                                .size(32.dp)
+                                .padding(end = 12.dp)
+                        )
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = cardNavy)
                 )

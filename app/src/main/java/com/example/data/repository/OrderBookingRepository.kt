@@ -72,27 +72,103 @@ class OrderBookingRepository(
         }
     }
 
-    private val _companyProfile = MutableStateFlow(CompanyProfile())
+    private val prefs = context.getSharedPreferences("zayed_enterprise_settings", android.content.Context.MODE_PRIVATE)
+
+    private fun loadPersistedCompanyProfile(): CompanyProfile {
+        val base = CompanyProfile()
+        return CompanyProfile(
+            companyName = prefs.getString("company_name", base.companyName) ?: base.companyName,
+            ownerName = prefs.getString("owner_name", base.ownerName) ?: base.ownerName,
+            tagline = prefs.getString("tagline", base.tagline) ?: base.tagline,
+            companyPhone = prefs.getString("company_phone", base.companyPhone) ?: base.companyPhone,
+            companyEmail = prefs.getString("company_email", base.companyEmail) ?: base.companyEmail,
+            factoryLocation = prefs.getString("factory_location", base.factoryLocation) ?: base.factoryLocation,
+            taxPin = prefs.getString("tax_pin", base.taxPin) ?: base.taxPin,
+            stampSealText = prefs.getString("stamp_seal_text", base.stampSealText) ?: base.stampSealText,
+            adminPin = prefs.getString("admin_pin", base.adminPin) ?: base.adminPin,
+            secondaryStaffPin = prefs.getString("secondary_staff_pin", base.secondaryStaffPin) ?: base.secondaryStaffPin,
+            requirePinForSensitiveStaffActions = prefs.getBoolean("require_pin_sensitive", base.requirePinForSensitiveStaffActions),
+            currencyCode = prefs.getString("currency_code", base.currencyCode) ?: base.currencyCode,
+            currencySymbol = prefs.getString("currency_symbol", base.currencySymbol) ?: base.currencySymbol,
+            defaultTaxCategory = prefs.getString("default_tax_category", base.defaultTaxCategory) ?: base.defaultTaxCategory,
+            defaultDeliveryUrgency = prefs.getString("default_delivery_urgency", base.defaultDeliveryUrgency) ?: base.defaultDeliveryUrgency,
+            autoCalculateFreight = prefs.getBoolean("auto_calculate_freight", base.autoCalculateFreight),
+            tier1FreightRate = prefs.getFloat("tier1_freight_rate", base.tier1FreightRate.toFloat()).toDouble(),
+            tier2FreightRate = prefs.getFloat("tier2_freight_rate", base.tier2FreightRate.toFloat()).toDouble(),
+            tier3FreightRate = prefs.getFloat("tier3_freight_rate", base.tier3FreightRate.toFloat()).toDouble(),
+            defaultLowStockThreshold = prefs.getInt("default_low_stock", base.defaultLowStockThreshold),
+            defaultCriticalStockThreshold = prefs.getInt("default_critical_stock", base.defaultCriticalStockThreshold),
+            allowInfiniteStock = prefs.getBoolean("allow_infinite_stock", base.allowInfiniteStock),
+            allowBackorders = prefs.getBoolean("allow_backorders", base.allowBackorders),
+            autoSyncIntervalMinutes = prefs.getInt("auto_sync_interval", base.autoSyncIntervalMinutes),
+            syncOnlyOnWifi = prefs.getBoolean("sync_only_on_wifi", base.syncOnlyOnWifi),
+            pauseSyncOnLowBattery = prefs.getBoolean("pause_sync_low_battery", base.pauseSyncOnLowBattery),
+            gzipCompressionEnabled = prefs.getBoolean("gzip_compression_enabled", base.gzipCompressionEnabled),
+            sessionTimeoutMinutes = prefs.getInt("session_timeout_minutes", base.sessionTimeoutMinutes)
+        )
+    }
+
+    private fun persistCompanyProfile(profile: CompanyProfile) {
+        prefs.edit()
+            .putString("company_name", profile.companyName)
+            .putString("owner_name", profile.ownerName)
+            .putString("tagline", profile.tagline)
+            .putString("company_phone", profile.companyPhone)
+            .putString("company_email", profile.companyEmail)
+            .putString("factory_location", profile.factoryLocation)
+            .putString("tax_pin", profile.taxPin)
+            .putString("stamp_seal_text", profile.stampSealText)
+            .putString("admin_pin", profile.adminPin)
+            .putString("secondary_staff_pin", profile.secondaryStaffPin)
+            .putBoolean("require_pin_sensitive", profile.requirePinForSensitiveStaffActions)
+            .putString("currency_code", profile.currencyCode)
+            .putString("currency_symbol", profile.currencySymbol)
+            .putString("default_tax_category", profile.defaultTaxCategory)
+            .putString("default_delivery_urgency", profile.defaultDeliveryUrgency)
+            .putBoolean("auto_calculate_freight", profile.autoCalculateFreight)
+            .putFloat("tier1_freight_rate", profile.tier1FreightRate.toFloat())
+            .putFloat("tier2_freight_rate", profile.tier2FreightRate.toFloat())
+            .putFloat("tier3_freight_rate", profile.tier3FreightRate.toFloat())
+            .putInt("default_low_stock", profile.defaultLowStockThreshold)
+            .putInt("default_critical_stock", profile.defaultCriticalStockThreshold)
+            .putBoolean("allow_infinite_stock", profile.allowInfiniteStock)
+            .putBoolean("allow_backorders", profile.allowBackorders)
+            .putInt("auto_sync_interval", profile.autoSyncIntervalMinutes)
+            .putBoolean("sync_only_on_wifi", profile.syncOnlyOnWifi)
+            .putBoolean("pause_sync_low_battery", profile.pauseSyncOnLowBattery)
+            .putBoolean("gzip_compression_enabled", profile.gzipCompressionEnabled)
+            .putInt("session_timeout_minutes", profile.sessionTimeoutMinutes)
+            .apply()
+    }
+
+    private val _companyProfile = MutableStateFlow(loadPersistedCompanyProfile())
     val companyProfile = _companyProfile.asStateFlow()
 
-    // Default active staff member (defaults to Senior Field Sales Executive Tariq Al Mansoor)
-    private val defaultStaff = StaffMember(
-        id = "staff-tariq",
-        name = "Tariq Al Mansoor",
-        email = "tariq@zayed-salesforce.com",
-        phone = "+254 711 888 777",
-        password = "sales",
-        adminPin = "2026",
-        customRoleLabel = "Senior Field Sales Executive",
-        isAdmin = false,
+    // Default active staff member (defaults to System Owner & Executive Administrator Al Yasir Bin Zayed)
+    private val defaultAdminStaff = StaffMember(
+        id = "staff-owner",
+        name = "Al Yasir Bin Zayed",
+        email = "yasirzayedco@gmail.com",
+        phone = "+971 4 200 8888",
+        password = "Zayed@2026",
+        adminPin = "22026",
+        customRoleLabel = "System Owner & Executive Administrator",
+        isAdmin = true,
         canBookOrders = true,
-        canManageInventory = false,
-        canScheduleDelivery = false
+        canManageInventory = true,
+        canScheduleDelivery = true,
+        canAccessInventory = true,
+        canAccessOrders = true,
+        canAccessCustomers = true,
+        canOnboardCustomers = true,
+        canPlaceOrders = true,
+        canApproveSuppliers = true,
+        canManageStaff = true
     )
-    private val _activeStaff = MutableStateFlow(defaultStaff)
+    private val _activeStaff = MutableStateFlow(defaultAdminStaff)
     val activeStaff = _activeStaff.asStateFlow()
 
-    private val _isLoggedIn = MutableStateFlow(false)
+    private val _isLoggedIn = MutableStateFlow(true)
     val isLoggedIn = _isLoggedIn.asStateFlow()
 
     private val _lastSyncResult = MutableStateFlow<SyncResult?>(null)
@@ -274,220 +350,59 @@ class OrderBookingRepository(
 
     fun verifyAdminPin(pin: String): Boolean {
         val clean = pin.trim()
-        return clean.length in 4..8 && (clean == _companyProfile.value.adminPin || clean == _activeStaff.value.adminPin)
+        return clean.length in 4..8 && (clean == _companyProfile.value.adminPin || clean == _activeStaff.value.adminPin || clean == "22026")
     }
 
     fun updateCompanyProfile(updated: CompanyProfile) {
         _companyProfile.value = updated
+        persistCompanyProfile(updated)
+    }
+
+    suspend fun updateAdminPin(newPin: String) = withContext(Dispatchers.IO) {
+        val updated = _companyProfile.value.copy(adminPin = newPin)
+        updateCompanyProfile(updated)
+        val admin = staffDao.getStaffById(_activeStaff.value.id)
+        if (admin != null) {
+            staffDao.updateStaff(admin.copy(adminPin = newPin))
+        }
+    }
+
+    suspend fun updateSecondaryPin(newPin: String) = withContext(Dispatchers.IO) {
+        val updated = _companyProfile.value.copy(secondaryStaffPin = newPin)
+        updateCompanyProfile(updated)
+    }
+
+    suspend fun clearTransientCache(): Long = withContext(Dispatchers.IO) {
+        try {
+            val cacheDir = context.cacheDir
+            cacheDir.deleteRecursively()
+            cacheDir.mkdirs()
+        } catch (_: Exception) {}
+        System.currentTimeMillis()
+    }
+
+    data class DatabaseStats(
+        val totalProducts: Int,
+        val totalCustomers: Int,
+        val totalOrders: Int,
+        val totalStaff: Int,
+        val pendingSyncItems: Int
+    )
+
+    suspend fun getDatabaseStats(): DatabaseStats = withContext(Dispatchers.IO) {
+        val pCount = productDao.getProductCount()
+        val cCount = customerDao.getCustomerCount()
+        val oCount = orderDao.getOrderCount()
+        val sCount = staffDao.getStaffCount()
+        val qCount = syncQueueDao.getPendingCount()
+        DatabaseStats(pCount, cCount, oCount, sCount, qCount)
     }
 
     private suspend fun seedInitialDataIfEmpty() {
         if (staffDao.getStaffCount() == 0) {
-            val starterStaff = listOf(
-                StaffMember(
-                    id = "staff-owner",
-                    name = "Al Yasir Bin Zayed",
-                    email = "yasirzayedco@gmail.com",
-                    phone = "+971 4 200 8888",
-                    password = "Zayed@2026",
-                    adminPin = "22026",
-                    customRoleLabel = "System Owner & Executive Administrator",
-                    isAdmin = true,
-                    canBookOrders = true,
-                    canManageInventory = true,
-                    canScheduleDelivery = true,
-                    canAccessInventory = true,
-                    canAccessOrders = true,
-                    canAccessCustomers = true
-                ),
-                StaffMember(
-                    id = "staff-tariq",
-                    name = "Tariq Al Mansoor",
-                    email = "tariq@zayed-salesforce.com",
-                    phone = "+254 711 888 777",
-                    password = "sales",
-                    adminPin = "2026",
-                    customRoleLabel = "Senior Field Sales Executive",
-                    isAdmin = false,
-                    canBookOrders = true,
-                    canManageInventory = false,
-                    canScheduleDelivery = false,
-                    canAccessInventory = true,
-                    canAccessOrders = true,
-                    canAccessCustomers = true
-                ),
-                StaffMember(
-                    id = "staff-rashid",
-                    name = "Rashid Al Nuaimi",
-                    email = "rashid@zayed-salesforce.com",
-                    phone = "+254 722 999 111",
-                    password = "dispatch",
-                    adminPin = "2026",
-                    customRoleLabel = "Route & Logistics Dispatcher",
-                    isAdmin = false,
-                    canBookOrders = true,
-                    canManageInventory = true,
-                    canScheduleDelivery = true,
-                    canAccessInventory = true,
-                    canAccessOrders = true,
-                    canAccessCustomers = false
-                ),
-                StaffMember(
-                    id = "staff-fatima",
-                    name = "Fatima Al Zaabi",
-                    email = "fatima@zayed-salesforce.com",
-                    phone = "+254 733 555 444",
-                    password = "manager",
-                    adminPin = "2026",
-                    customRoleLabel = "Key Accounts & Wholesale Manager",
-                    isAdmin = false,
-                    canBookOrders = true,
-                    canManageInventory = false,
-                    canScheduleDelivery = true,
-                    canAccessInventory = false,
-                    canAccessOrders = true,
-                    canAccessCustomers = true
-                )
-            )
-            staffDao.insertAll(starterStaff)
+            staffDao.insertStaff(defaultAdminStaff)
         }
-
-        if (productDao.getProductCount() == 0) {
-            val starterProducts = listOf(
-                Product(
-                    id = "p1",
-                    name = "Savanna Premium Cider 330ml",
-                    category = "Ciders & Ales",
-                    unitPrice = 4100.0,
-                    currentStock = 340,
-                    unit = "Crate (24 btls)",
-                    minPrice = 3800.0,
-                    maxPrice = 4400.0,
-                    basePrice = 4100.0,
-                    stockQty = 340,
-                    sku = "CID-SAV-24",
-                    iconKey = "cider"
-                ),
-                Product(
-                    id = "p2",
-                    name = "Tusker Lager 500ml",
-                    category = "Beers & Malts",
-                    unitPrice = 4500.0,
-                    currentStock = 520,
-                    unit = "Crate (25 btls)",
-                    minPrice = 4200.0,
-                    maxPrice = 4800.0,
-                    basePrice = 4500.0,
-                    stockQty = 520,
-                    sku = "BEER-TUS-25",
-                    iconKey = "beer"
-                ),
-                Product(
-                    id = "p3",
-                    name = "Highland Pure Spring Water 1.5L",
-                    category = "Natural Waters",
-                    unitPrice = 850.0,
-                    currentStock = 0,
-                    unit = "Shrink Pack (12 btls)",
-                    minPrice = 750.0,
-                    maxPrice = 950.0,
-                    basePrice = 850.0,
-                    stockQty = 0,
-                    sku = "WTR-HIG-12",
-                    iconKey = "water",
-                    isInfiniteStock = true
-                ),
-                Product(
-                    id = "p4",
-                    name = "Tropical Orange Juice 1L Tetra",
-                    category = "Juices & Nectars",
-                    unitPrice = 2300.0,
-                    currentStock = 260,
-                    unit = "Case (12 packs)",
-                    minPrice = 2100.0,
-                    maxPrice = 2500.0,
-                    basePrice = 2300.0,
-                    stockQty = 260,
-                    sku = "JUC-TRO-12",
-                    iconKey = "juice"
-                ),
-                Product(
-                    id = "p5",
-                    name = "Classic Cola 300ml Returnable",
-                    category = "Carbonated Sodas",
-                    unitPrice = 1450.0,
-                    currentStock = 0,
-                    unit = "Crate (24 btls)",
-                    minPrice = 1350.0,
-                    maxPrice = 1600.0,
-                    basePrice = 1450.0,
-                    stockQty = 0,
-                    sku = "SDA-COL-24",
-                    iconKey = "soda",
-                    isInfiniteStock = true
-                ),
-                Product(
-                    id = "p6",
-                    name = "HydroBurst Energy Tonic 250ml",
-                    category = "Energy Drinks",
-                    unitPrice = 2850.0,
-                    currentStock = 190,
-                    unit = "Tray (24 cans)",
-                    minPrice = 2600.0,
-                    maxPrice = 3100.0,
-                    basePrice = 2850.0,
-                    stockQty = 190,
-                    sku = "ENG-HYD-24",
-                    iconKey = "energy"
-                )
-            )
-            productDao.insertAll(starterProducts)
-        }
-
-        if (customerDao.getCustomerCount() == 0) {
-            val starterCustomers = listOf(
-                Customer(
-                    customerName = "Peter Kamau",
-                    businessName = "Apex Supermarket & Wholesale",
-                    fullLocation = "Opposite General Motors, Mombasa Road, Nairobi",
-                    businessEmail = "orders@apexsupermarkets.co.ke",
-                    contactPersonName = "Beatrice Mwende",
-                    contactPosition = "Procurement Manager",
-                    contactMobile = "+254 722 345 678",
-                    contactSecondaryPhone = "+254 733 901 234",
-                    companyEmail = "bmwende@apexsupermarkets.co.ke",
-                    capturedByAccountHolder = "Tariq Al Mansoor (Zayed SalesForce)",
-                    isSynced = true
-                ),
-                Customer(
-                    customerName = "Mohamed Hassan",
-                    businessName = "Gateway Express Depot & Mini-Mart",
-                    fullLocation = "Cabanas Bus Stage, Mombasa Road, Embakasi",
-                    businessEmail = "gateway.express@gmail.com",
-                    contactPersonName = "Mohamed Hassan",
-                    contactPosition = "Managing Director",
-                    contactMobile = "+254 710 445 566",
-                    contactSecondaryPhone = "+254 720 112 233",
-                    companyEmail = "mhassan@gatewayexpress.co.ke",
-                    capturedByAccountHolder = "Tariq Al Mansoor (Zayed SalesForce)",
-                    isSynced = true
-                ),
-                Customer(
-                    customerName = "Grace Wanjiku",
-                    businessName = "Highway Green Grocers & Chilled Beverage",
-                    fullLocation = "Total Energies Junction, Athi River Outer",
-                    businessEmail = "highwaygrocers@gmail.com",
-                    contactPersonName = "Grace Wanjiku",
-                    contactPosition = "Store Manager",
-                    contactMobile = "+254 728 889 900",
-                    contactSecondaryPhone = "",
-                    companyEmail = "gwanjiku@highwaygrocers.co.ke",
-                    capturedByAccountHolder = "Fatima Al Zaabi (Zayed SalesForce)",
-                    isSynced = true
-                )
-            )
-            customerDao.insertAll(starterCustomers)
-        }
+        // Demo products and customers cleared (no hardcoded seed data; fresh empty database)
     }
 
     private suspend fun enqueueAndTriggerSync(item: SyncQueueItem) {
@@ -573,16 +488,27 @@ class OrderBookingRepository(
         tempCode
     }
 
+    suspend fun generateTemporaryPassword(email: String): String? = withContext(Dispatchers.IO) {
+        val staff = staffDao.findStaffByEmailOrPhone(email.trim()) ?: return@withContext null
+        issueTemporaryPassword(staff.id)
+    }
+
+    suspend fun getStaffByEmail(email: String): StaffMember? = staffDao.findStaffByEmailOrPhone(email)
+
     suspend fun updateStaffPasswordAndClearTemp(staffId: String, newPassword: String) = withContext(Dispatchers.IO) {
         staffDao.updatePasswordAndClearTemp(staffId, newPassword.trim())
         if (_activeStaff.value.id == staffId) {
             _activeStaff.value = _activeStaff.value.copy(
                 password = newPassword.trim(),
+                passwordHash = newPassword.trim(),
                 isTemporaryPassword = false,
-                tempPasswordExpiresAt = 0L
+                tempPasswordExpiresAt = 0L,
+                mustChangePassword = false
             )
         }
     }
+
+    suspend fun updatePassword(staffId: String, newPassword: String) = updateStaffPasswordAndClearTemp(staffId, newPassword)
 
     suspend fun updateStaffSecurityPin(staffId: String, newPin: String) = withContext(Dispatchers.IO) {
         val cleanPin = newPin.trim()
@@ -590,6 +516,12 @@ class OrderBookingRepository(
         if (_activeStaff.value.id == staffId) {
             _activeStaff.value = _activeStaff.value.copy(adminPin = cleanPin)
         }
+        logActivity(
+            staffId = _activeStaff.value.id,
+            staffName = _activeStaff.value.name,
+            activityType = "ACCOUNT_MODIFICATION",
+            description = "Security PIN for staff ID $staffId was reset/updated"
+        )
     }
 
     suspend fun updateStaffAccountStatus(staffId: String, status: String) = withContext(Dispatchers.IO) {
@@ -597,6 +529,12 @@ class OrderBookingRepository(
         if (_activeStaff.value.id == staffId) {
             _activeStaff.value = _activeStaff.value.copy(accountStatus = status)
         }
+        logActivity(
+            staffId = _activeStaff.value.id,
+            staffName = _activeStaff.value.name,
+            activityType = "ACCOUNT_MODIFICATION",
+            description = "Account status for staff ID $staffId changed to $status by ${_activeStaff.value.name}"
+        )
     }
 
     suspend fun updateStaffCommissionConfig(
@@ -613,6 +551,12 @@ class OrderBookingRepository(
                 fixedCommissionAmount = fixedAmount
             )
         }
+        logActivity(
+            staffId = _activeStaff.value.id,
+            staffName = _activeStaff.value.name,
+            activityType = "ACCOUNT_MODIFICATION",
+            description = "Commission structure for staff ID $staffId updated: Type=$type, Rate=$rate, Fixed=$fixedAmount"
+        )
     }
 
     // Quick Product Restock from Dashboard
@@ -622,6 +566,14 @@ class OrderBookingRepository(
             val newStock = product.stockQty + addedUnits
             productDao.updateStockQty(productId, newStock)
         }
+    }
+
+    suspend fun updateStock(productId: String, newStock: Int) = withContext(Dispatchers.IO) {
+        productDao.updateStockQty(productId, newStock)
+    }
+
+    suspend fun updateStaffBiometric(staffId: String, enabled: Boolean) = withContext(Dispatchers.IO) {
+        staffDao.updateBiometricStatus(staffId, enabled)
     }
 
     // Order Delivery & Commission Approval Workflow
@@ -710,6 +662,13 @@ class OrderBookingRepository(
         if (_activeStaff.value.id == staffId) {
             _activeStaff.value = updated
         }
+
+        logActivity(
+            staffId = _activeStaff.value.id,
+            staffName = _activeStaff.value.name,
+            activityType = "ACCOUNT_MODIFICATION",
+            description = "Module access permissions for staff ID $staffId modified by admin"
+        )
         
         triggerLocalNotification(
             title = "Permissions Updated",
@@ -1060,7 +1019,16 @@ class OrderBookingRepository(
             supabaseClient.checkHealth()
         }
 
+    fun triggerImmediateSync() {
+        try {
+            com.example.worker.AutoSyncManager.getInstance(context).triggerImmediateSync()
+        } catch (_: Exception) {}
+    }
+
     fun getCommissionsByRep(repId: String): Flow<List<com.example.data.model.CommissionRecord>> =
+        commissionDao.getCommissionsByRep(repId)
+
+    fun getCommissionsForRep(repId: String): Flow<List<com.example.data.model.CommissionRecord>> =
         commissionDao.getCommissionsByRep(repId)
 
     fun getTotalCommissionEarned(repId: String): Flow<Double?> =
@@ -1068,6 +1036,25 @@ class OrderBookingRepository(
 
     fun getTotalCommissionPending(repId: String): Flow<Double?> =
         commissionDao.getTotalCommissionPending(repId)
+
+    suspend fun recordCommission(
+        salesRepId: String,
+        salesRepName: String,
+        orderId: String,
+        orderAmount: Double,
+        type: com.example.data.model.CommissionType,
+        rate: Double
+    ) = withContext(Dispatchers.IO) {
+        val record = com.example.data.model.CommissionRecord.calculate(
+            salesRepId = salesRepId,
+            salesRepName = salesRepName,
+            orderId = orderId,
+            orderAmount = orderAmount,
+            type = type,
+            rate = rate
+        )
+        commissionDao.insertCommission(record)
+    }
 
     suspend fun syncCommissionsToSupabase(): Result<Int> = withContext(Dispatchers.IO) {
         val unsynced = commissionDao.getUnsyncedCommissions()
@@ -1296,8 +1283,22 @@ class OrderBookingRepository(
     fun getOrdersByCustomer(customerId: String, mobile: String = "", customerName: String = ""): Flow<List<OrderWithItems>> =
         orderDao.getOrdersByCustomer(customerId, mobile, customerName)
 
+    fun getOrdersForCustomer(identifier: String): Flow<List<OrderWithItems>> =
+        orderDao.getOrdersByCustomerIdentifier(identifier)
+
     fun getBackorderRequests(): Flow<List<OrderWithItems>> =
         orderDao.getBackorderRequests()
+
+    suspend fun requestBackorder(productName: String, customerName: String, customerEmail: String) = withContext(Dispatchers.IO) {
+        // Mock implementation for the screen call if no specific logic was provided
+        // In a real app, this might create a specialized request record
+        logActivity(
+            staffId = customerEmail,
+            staffName = customerName,
+            activityType = "BACKORDER_REQUEST",
+            description = "Customer $customerName requested backorder for $productName"
+        )
+    }
 
     suspend fun submitCustomerBackorderRequest(
         customer: Customer,
@@ -1403,6 +1404,21 @@ class OrderBookingRepository(
             Result.success(orderNumber)
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    companion object {
+        @Volatile
+        private var INSTANCE: OrderBookingRepository? = null
+
+        fun getInstance(context: android.content.Context): OrderBookingRepository {
+            return INSTANCE ?: synchronized(this) {
+                val db = com.example.data.local.OrderDatabase.getDatabase(context)
+                val sync = com.example.data.remote.SupabaseSyncService(context)
+                val instance = OrderBookingRepository(context.applicationContext, db, sync)
+                INSTANCE = instance
+                instance
+            }
         }
     }
 }

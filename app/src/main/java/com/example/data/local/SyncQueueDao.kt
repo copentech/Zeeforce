@@ -19,6 +19,9 @@ interface SyncQueueDao {
     @Query("SELECT COUNT(*) FROM sync_queue WHERE status = 'PENDING'")
     fun getPendingCountFlow(): Flow<Int>
 
+    @Query("SELECT COUNT(*) FROM sync_queue WHERE status = 'PENDING'")
+    suspend fun getPendingCount(): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun enqueue(item: SyncQueueItem): Long
 

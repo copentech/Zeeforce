@@ -1,8 +1,11 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -70,35 +73,39 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
+import com.example.data.repository.OrderBookingRepository
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import androidx.activity.compose.BackHandler
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun AdminDispatchScreen(
-    orders: List<OrderWithItems>,
-    products: List<Product>,
-    staffList: List<StaffMember>,
-    pendingDeletionCount: Int,
-    onScheduleDelivery: (orderId: String, scheduledDate: String) -> Unit,
-    onUpdateStatus: (orderId: String, status: String) -> Unit,
-    onQuickRestock: (productId: String, addedUnits: Int) -> Unit,
-    onApproveDeliveryAndCommission: (orderId: String, paymentCode: String, commissionAmount: Double) -> Unit,
-    onViewSummary: (OrderWithItems) -> Unit,
-    onOpenStaffManagement: () -> Unit,
-    onOpenPermissionManager: () -> Unit,
-    onOpenDeletionRequests: () -> Unit,
-    onOpenSupplierPerformance: () -> Unit,
-    onOpenSalesAnalytics: () -> Unit,
-    onOpenAppSettings: () -> Unit,
-    onOpenAboutDialog: () -> Unit,
-    companyProfile: CompanyProfile = CompanyProfile(),
+    repository: OrderBookingRepository,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    BackHandler { onBack() }
+    val coroutineScope = rememberCoroutineScope()
+    val orders by repository.allOrders.collectAsState(initial = emptyList())
+    val products by repository.allProducts.collectAsState(initial = emptyList())
+    val staffList by repository.allStaff.collectAsState(initial = emptyList())
+    val pendingDeletionRequests by repository.pendingDeletionRequests.collectAsState(initial = emptyList())
+    val companyProfile by repository.companyProfile.collectAsState()
+    
+    val pendingDeletionCount = pendingDeletionRequests.size
+
     var searchQuery by remember { mutableStateOf("") }
     var selectedOrderToSchedule by remember { mutableStateOf<OrderWithItems?>(null) }
     var orderForCommissionApproval by remember { mutableStateOf<OrderWithItems?>(null) }
     var orderForCommissionSlip by remember { mutableStateOf<OrderWithItems?>(null) }
+    var orderForSummaryDialog by remember { mutableStateOf<OrderWithItems?>(null) }
 
-    val currencyFormatter = remember {
-        NumberFormat.getCurrencyInstance(Locale("en", "KE")).apply {
-            currency = java.util.Currency.getInstance("KES")
+    val currencyFormatter = remember(companyProfile.currencyCode) {
+        NumberFormat.getCurrencyInstance().apply {
+            currency = java.util.Currency.getInstance(companyProfile.currencyCode)
         }
     }
 
@@ -115,73 +122,49 @@ fun AdminDispatchScreen(
                 it.order.customerLocation.contains(searchQuery, ignoreCase = true)
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = 14.dp, vertical = 8.dp)
-    ) {
-        // Admin Overview Header with Actions
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(text = "Zayed SalesForce Admin", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text(text = "Al Yasir Bin Zayed Executive Console", fontSize = 11.sp, color = Color(0xFFD4AF37), fontWeight = FontWeight.Bold)
-            }
-
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                IconButton(
-                    onClick = onOpenAboutDialog,
-                    modifier = Modifier.testTag("admin_open_about_btn")
-                ) {
-                    Icon(Icons.Default.Info, contentDescription = "About", tint = MaterialTheme.colorScheme.primary)
+    androidx.compose.material3.Scaffold(
+        topBar = {
+            androidx.compose.material3.TopAppBar(
+                title = { 
+                    Column {
+                        Text("Order Fulfillment & Dispatch")
+                        Text("${orders.size} Total Orders Manager", style = MaterialTheme.typography.labelSmall)
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    Image(
+                        painter = painterResource(id = R.drawable.zayed_logo),
+                        contentDescription = "Zayed Corporate Logo",
+                        modifier = Modifier
+                            .size(32.dp)
+                            .padding(end = 12.dp)
+                    )
                 }
-
-                OutlinedButton(
-                    onClick = onOpenPermissionManager,
-                    contentPadding = ButtonDefaults.TextButtonContentPadding,
-                    modifier = Modifier.testTag("admin_permissions_btn")
-                ) {
-                    Icon(Icons.Default.Security, contentDescription = null, modifier = Modifier.size(13.dp), tint = Color(0xFFD4AF37))
-                    Spacer(modifier = Modifier.width(3.dp))
-                    Text("Permissions", fontSize = 11.sp)
-                }
-
-                IconButton(
-                    onClick = onOpenAppSettings,
-                    modifier = Modifier.testTag("admin_app_settings_btn")
-                ) {
-                    Icon(Icons.Default.Settings, contentDescription = "App Settings", tint = MaterialTheme.colorScheme.primary)
-                }
-
-                IconButton(
-                    onClick = onOpenSupplierPerformance,
-                    modifier = Modifier.testTag("admin_supplier_performance_btn")
-                ) {
-                    Icon(Icons.Default.TrendingUp, contentDescription = "Supplier Performance", tint = MaterialTheme.colorScheme.primary)
-                }
-
-                IconButton(
-                    onClick = onOpenSalesAnalytics,
-                    modifier = Modifier.testTag("admin_sales_analytics_btn")
-                ) {
-                    Icon(Icons.Default.BarChart, contentDescription = "Sales Revenue Analytics", tint = Color(0xFFD4AF37))
-                }
-
-                Button(
-                    onClick = onOpenStaffManagement,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    contentPadding = ButtonDefaults.TextButtonContentPadding,
-                    modifier = Modifier.testTag("admin_staff_management_btn")
-                ) {
-                    Icon(Icons.Default.Badge, contentDescription = null, modifier = Modifier.size(13.dp))
-                    Spacer(modifier = Modifier.width(3.dp))
-                    Text("Staff", fontSize = 11.sp)
-                }
-            }
+            )
         }
+    ) { innerPadding ->
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 14.dp, vertical = 8.dp)
+        ) {
+            // Summary Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(text = "Fulfillment Hub", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(text = "Executive Logistics Console", fontSize = 11.sp, color = Color(0xFFD4AF37), fontWeight = FontWeight.Bold)
+                }
+            }
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -196,7 +179,9 @@ fun AdminDispatchScreen(
             item {
                 ThreeLayerStockAlertWidget(
                     products = products,
-                    onUpdateStock = onQuickRestock
+                    onUpdateStock = { pid, qty ->
+                        coroutineScope.launch { repository.quickRestockProduct(pid, qty) }
+                    }
                 )
             }
 
@@ -205,7 +190,9 @@ fun AdminDispatchScreen(
                 AdminSalesDashboardWidget(
                     orders = orders,
                     products = products,
-                    onQuickRestock = onQuickRestock,
+                    onQuickRestock = { pid, qty ->
+                        coroutineScope.launch { repository.quickRestockProduct(pid, qty) }
+                    },
                     companyProfile = companyProfile
                 )
             }
@@ -216,7 +203,6 @@ fun AdminDispatchScreen(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onOpenDeletionRequests() }
                             .testTag("banner_admin_pending_deletions"),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF2F2)),
                         shape = RoundedCornerShape(8.dp)
@@ -237,13 +223,6 @@ fun AdminDispatchScreen(
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF991B1B)
                                 )
-                            }
-                            Button(
-                                onClick = onOpenDeletionRequests,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                                contentPadding = ButtonDefaults.TextButtonContentPadding
-                            ) {
-                                Text("Review", fontSize = 10.sp)
                             }
                         }
                     }
@@ -363,7 +342,7 @@ fun AdminDispatchScreen(
 
                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 OutlinedButton(
-                                    onClick = { onViewSummary(item) },
+                                    onClick = { orderForSummaryDialog = item },
                                     modifier = Modifier.testTag("admin_view_stamp_${order.orderNumber}"),
                                     contentPadding = ButtonDefaults.TextButtonContentPadding
                                 ) {
@@ -413,6 +392,7 @@ fun AdminDispatchScreen(
             }
         }
     }
+}
 
     // Schedule Delivery Dialog
     selectedOrderToSchedule?.let { item ->
@@ -420,9 +400,11 @@ fun AdminDispatchScreen(
             order = item.order,
             onDismiss = { selectedOrderToSchedule = null },
             onConfirm = { dateStr, status ->
-                onScheduleDelivery(item.order.id, dateStr)
-                if (status != item.order.status) {
-                    onUpdateStatus(item.order.id, status)
+                coroutineScope.launch {
+                    repository.scheduleOrderDelivery(item.order.id, dateStr)
+                    if (status != item.order.status) {
+                        repository.updateOrderStatus(item.order.id, status)
+                    }
                 }
                 selectedOrderToSchedule = null
             }
@@ -440,7 +422,9 @@ fun AdminDispatchScreen(
             staffRep = rep,
             onDismiss = { orderForCommissionApproval = null },
             onApproveDeliveryAndCommission = { paymentCode, commissionAmount ->
-                onApproveDeliveryAndCommission(approvalItem.order.id, paymentCode, commissionAmount)
+                coroutineScope.launch {
+                    repository.approveDeliveryAndPaymentWithCommission(approvalItem.order.id, paymentCode, commissionAmount)
+                }
                 orderForCommissionApproval = null
             }
         )
@@ -456,6 +440,14 @@ fun AdminDispatchScreen(
             orderWithItems = slipItem,
             staffRep = rep,
             onDismiss = { orderForCommissionSlip = null }
+        )
+    }
+
+    orderForSummaryDialog?.let { summaryItem ->
+        com.example.ui.components.OrderSummaryDialog(
+            orderWithItems = summaryItem,
+            companyProfile = companyProfile,
+            onDismiss = { orderForSummaryDialog = null }
         )
     }
 }

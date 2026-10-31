@@ -75,7 +75,7 @@ fun SettingsSyncScreen(
     pendingSyncCount: Int,
     isSyncing: Boolean,
     lastSyncResult: SyncResult?,
-    onLogout: () -> Unit,
+    onLogout: () -> Unit = {},
     onOpenAboutDialog: () -> Unit,
     onToggleNetworkMode: () -> Unit,
     onUpdateProfile: (CompanyProfile) -> Unit,
@@ -170,16 +170,6 @@ fun SettingsSyncScreen(
                                 }
                             }
                         }
-                    }
-
-                    OutlinedButton(
-                        onClick = onLogout,
-                        contentPadding = ButtonDefaults.TextButtonContentPadding,
-                        modifier = Modifier.testTag("btn_logout_from_settings")
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Log Out", fontSize = 11.sp)
                     }
                 }
             }
@@ -466,7 +456,7 @@ fun SettingsSyncScreen(
             ) {
                 Icon(imageVector = Icons.Default.AdminPanelSettings, contentDescription = null, tint = Color(0xFFD4AF37), modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Open Secure Admin Dashboard & Activity Logs (PIN 22026)", color = Color(0xFFD4AF37), fontWeight = FontWeight.Bold)
+                Text("Open Secure Admin Dashboard & Activity Logs", color = Color(0xFFD4AF37), fontWeight = FontWeight.Bold)
             }
         }
 

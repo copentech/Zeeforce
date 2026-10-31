@@ -18,7 +18,25 @@ data class CompanyProfile(
     val supabaseUrl: String = "https://kocvwcwmzaosgofydjha.supabase.co",
     val supabaseAnonKey: String = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvY3Z3Y3dtemFvc2dvZnlkamhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwODY5MjQsImV4cCI6MjEwODY2MjkyNH0.hgeecPbnr0fo7W-RiaHWz8zEy84OTN-GKnE_B7b1O1U",
     val isLowBandwidthMode: Boolean = true,
-    val isDarkMode: Boolean = true
+    val isDarkMode: Boolean = true,
+    val currencyCode: String = "USD",
+    val currencySymbol: String = "$",
+    // Enterprise Configuration Settings
+    val defaultTaxCategory: String = "VAT (16%)",
+    val defaultDeliveryUrgency: String = "Standard Dispatch",
+    val autoCalculateFreight: Boolean = true,
+    val tier1FreightRate: Double = 50.0,
+    val tier2FreightRate: Double = 120.0,
+    val tier3FreightRate: Double = 250.0,
+    val defaultLowStockThreshold: Int = 15,
+    val defaultCriticalStockThreshold: Int = 5,
+    val allowInfiniteStock: Boolean = true,
+    val allowBackorders: Boolean = true,
+    val autoSyncIntervalMinutes: Int = 15,
+    val syncOnlyOnWifi: Boolean = false,
+    val pauseSyncOnLowBattery: Boolean = true,
+    val gzipCompressionEnabled: Boolean = true,
+    val sessionTimeoutMinutes: Int = 30
 )
 
 data class RegionalPricingConfig(
@@ -26,13 +44,16 @@ data class RegionalPricingConfig(
     val distanceBand: String = "0-25 km (Local Nairobi)",
     val regionalTier: String = "Tier 1 - Nairobi Urban",
     val deliveryUrgency: String = "Standard Dispatch",
-    val taxCategory: String = "VAT (16%)"
+    val taxCategory: String = "VAT (16%)",
+    val tier1Rate: Double = 50.0,
+    val tier2Rate: Double = 120.0,
+    val tier3Rate: Double = 250.0
 ) {
     fun calculateFreightSurcharge(totalUnits: Int): Double {
         val baseTierRate = when {
-            regionalTier.contains("Tier 1") -> 50.0
-            regionalTier.contains("Tier 2") -> 120.0
-            else -> 250.0 // Tier 3
+            regionalTier.contains("Tier 1") -> tier1Rate
+            regionalTier.contains("Tier 2") -> tier2Rate
+            else -> tier3Rate // Tier 3
         }
         val distanceMultiplier = when {
             distanceKm <= 25 -> 1.0
@@ -52,6 +73,7 @@ data class RegionalPricingConfig(
     fun getTaxRate(): Double {
         return when (taxCategory) {
             "VAT (16%)" -> 0.16
+            "VAT (8%)" -> 0.08
             else -> 0.0
         }
     }

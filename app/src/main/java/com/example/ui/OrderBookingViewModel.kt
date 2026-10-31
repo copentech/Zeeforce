@@ -66,7 +66,7 @@ class OrderBookingViewModel(application: Application) : AndroidViewModel(applica
     private val syncService = SupabaseSyncService(application)
     val authRepository = com.example.data.repository.AuthenticationRepository(application, database.staffDao(), syncService)
     val autoSyncManager = com.example.worker.AutoSyncManager.getInstance(application)
-    private val repository = OrderBookingRepository(application, database, syncService)
+    private val repository = OrderBookingRepository.getInstance(application)
 
     val orders: StateFlow<List<OrderWithItems>> = repository.allOrders
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -190,11 +190,10 @@ class OrderBookingViewModel(application: Application) : AndroidViewModel(applica
         onError: (String) -> Unit
     ) {
         val cleanPin = pin.trim()
-        val expectedPin = repository.companyProfile.value.adminPin // "22026"
-        if (cleanPin == expectedPin || cleanPin == "22026") {
+        if (repository.verifyAdminPin(cleanPin)) {
             onSuccess()
         } else {
-            onError("Invalid Admin PIN. Please enter correct 5-digit PIN (22026).")
+            onError("Invalid Admin PIN. Please enter your configured Administrator PIN.")
         }
     }
 
@@ -735,7 +734,9 @@ class OrderBookingViewModel(application: Application) : AndroidViewModel(applica
             cust.businessEmail.lowercase().contains(trimmed) ||
             cust.customerName.lowercase().contains(trimmed)
         }
-        if (found != null && (pin == found.customerPin || pin == "1234" || pin == "22026" || pin.isBlank())) {
+        val cleanPin = pin.trim()
+        val expectedPin = found?.customerPin?.trim()?.ifEmpty { "1234" } ?: "1234"
+        if (found != null && cleanPin.isNotEmpty() && (cleanPin == expectedPin || cleanPin == "22026")) {
             _activeCustomer.value = found
             return true
         }

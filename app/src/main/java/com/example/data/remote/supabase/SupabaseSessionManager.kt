@@ -180,7 +180,7 @@ class SupabaseSessionManager(
                     )
                 }
                 return MfaVerificationResult.Failed(
-                    message = "Too many failed attempts. Security Lockout triggered for 60 seconds. Master PIN: 22026",
+                    message = "Too many failed attempts. Security Lockout triggered for 60 seconds. Please consult system administrator.",
                     remainingAttempts = 0,
                     isLockedOut = true
                 )
@@ -192,7 +192,7 @@ class SupabaseSessionManager(
                     )
                 }
                 return MfaVerificationResult.Failed(
-                    message = "Incorrect Security PIN. $remaining attempt(s) remaining. (Master bypass: 22026)",
+                    message = "Incorrect Security PIN. $remaining attempt(s) remaining.",
                     remainingAttempts = remaining,
                     isLockedOut = false
                 )

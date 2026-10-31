@@ -25,7 +25,7 @@ interface ProductDao {
     @Update
     suspend fun updateProduct(product: Product)
 
-    @Query("UPDATE products SET currentStock = :newQty WHERE id = :id")
+    @Query("UPDATE products SET currentStock = :newQty, stockQty = :newQty WHERE id = :id")
     suspend fun updateStockQty(id: String, newQty: Int)
 
     @Query("SELECT COUNT(*) FROM products")

@@ -20,7 +20,8 @@ object CommissionPdfPrinter {
         context: Context,
         salesRepName: String,
         salesRepId: String,
-        records: List<CommissionRecord>
+        records: List<CommissionRecord>,
+        currencyCode: String = "USD"
     ): File? {
         try {
             val pdfDocument = PdfDocument()
@@ -30,7 +31,9 @@ object CommissionPdfPrinter {
 
             val paint = Paint()
             val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-            val currencyFormat = NumberFormat.getCurrencyInstance(Locale.US)
+            val currencyFormat = NumberFormat.getCurrencyInstance().apply {
+                currency = java.util.Currency.getInstance(currencyCode)
+            }
 
             // Header - Brand Blue
             paint.color = Color.parseColor("#0F52BA")
@@ -44,6 +47,14 @@ object CommissionPdfPrinter {
             paint.textSize = 14f
             paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
             canvas.drawText("OFFICIAL SALES COMMISSION SLIP", 30f, 75f, paint)
+
+            try {
+                val logoBmp = android.graphics.BitmapFactory.decodeResource(context.resources, com.example.R.drawable.zayed_logo)
+                if (logoBmp != null) {
+                    val scaledLogo = android.graphics.Bitmap.createScaledBitmap(logoBmp, 65, 65, true)
+                    canvas.drawBitmap(scaledLogo, 500f, 18f, paint)
+                }
+            } catch (_: Exception) {}
 
             // Sales Rep Details Box
             paint.color = Color.parseColor("#F0F4F8")

@@ -1,8 +1,11 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -71,32 +74,28 @@ import com.example.ui.components.AdminConfirmDeleteCustomerDialog
 import com.example.ui.components.AdminDeletionRequestsDialog
 import com.example.ui.components.RequestCustomerDeletionDialog
 
+import com.example.data.repository.OrderBookingRepository
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.activity.compose.BackHandler
+import kotlinx.coroutines.launch
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun CustomerDirectoryScreen(
-    customers: List<Customer>,
-    pendingDeletionRequests: List<Customer>,
-    isAdmin: Boolean,
-    activeStaffName: String,
-    onAddCustomer: (
-        customerName: String,
-        businessName: String,
-        fullLocation: String,
-        businessEmail: String,
-        contactPersonName: String,
-        contactPosition: String,
-        contactMobile: String,
-        contactSecondaryPhone: String,
-        companyEmail: String
-    ) -> Unit,
-    onBookOrderForCustomer: (Customer) -> Unit,
-    onRequestDeleteCustomer: (Customer, reason: String) -> Unit,
-    onArchiveCustomer: (Customer) -> Unit = {},
-    onRestoreCustomer: (Customer) -> Unit = {},
-    onDirectDeleteCustomer: (Customer) -> Unit,
-    onApproveDeleteCustomer: (Customer) -> Unit,
-    onDismissDeleteRequest: (Customer) -> Unit,
+    repository: OrderBookingRepository,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    BackHandler { onBack() }
+    val coroutineScope = rememberCoroutineScope()
+    val customers by repository.allCustomers.collectAsState(initial = emptyList())
+    val pendingDeletionRequests by repository.pendingDeletionRequests.collectAsState(initial = emptyList())
+    val activeStaff by repository.activeStaff.collectAsState()
+    val isAdmin = activeStaff.isAdmin
+    val activeStaffName = activeStaff.name
+    
     var searchQuery by remember { mutableStateOf("") }
     var selectedTab by remember { mutableStateOf(0) } // 0: Active Clients, 1: Archived Records
     var showAddCustomerDialog by remember { mutableStateOf(false) }
@@ -118,10 +117,41 @@ fun CustomerDirectoryScreen(
         matchesTab && matchesQuery
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    androidx.compose.material3.Scaffold(
+        topBar = {
+            androidx.compose.material3.TopAppBar(
+                title = { Text("Customer Directory") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    Image(
+                        painter = painterResource(id = R.drawable.zayed_logo),
+                        contentDescription = "Zayed Corporate Logo",
+                        modifier = Modifier
+                            .size(32.dp)
+                            .padding(end = 12.dp)
+                    )
+                }
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { showAddCustomerDialog = true },
+                modifier = Modifier.testTag("fab_add_customer"),
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
+                Icon(imageVector = Icons.Default.Add, contentDescription = "Add Customer")
+            }
+        }
+    ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(innerPadding)
                 .padding(horizontal = 14.dp, vertical = 8.dp)
         ) {
             // Header
@@ -294,28 +324,19 @@ fun CustomerDirectoryScreen(
                         CustomerDetailCardWithGovernance(
                             customer = customer,
                             isAdmin = isAdmin,
-                            onBookOrder = { onBookOrderForCustomer(customer) },
-                            onArchive = { onArchiveCustomer(customer) },
-                            onRestore = { onRestoreCustomer(customer) },
+                            onBookOrder = { /* This would typically navigate to booking screen */ },
+                            onArchive = { 
+                                coroutineScope.launch { repository.archiveCustomer(customer.id) }
+                            },
+                            onRestore = { 
+                                coroutineScope.launch { repository.restoreCustomer(customer.id) }
+                            },
                             onRequestDeletion = { customerToRequestDeletion = customer },
                             onDirectDelete = { customerToDirectDelete = customer }
                         )
                     }
                 }
             }
-        }
-
-        // Floating Action Button
-        FloatingActionButton(
-            onClick = { showAddCustomerDialog = true },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp)
-                .testTag("fab_add_customer"),
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary
-        ) {
-            Icon(imageVector = Icons.Default.Add, contentDescription = "Add Customer")
         }
     }
 
@@ -324,7 +345,21 @@ fun CustomerDirectoryScreen(
             repName = activeStaffName,
             onDismiss = { showAddCustomerDialog = false },
             onSave = { name, bName, loc, bEmail, cName, pos, mob, secMob, cEmail ->
-                onAddCustomer(name, bName, loc, bEmail, cName, pos, mob, secMob, cEmail)
+                coroutineScope.launch {
+                    val newCustomer = Customer(
+                        customerName = name,
+                        businessName = bName,
+                        fullLocation = loc,
+                        businessEmail = bEmail,
+                        contactPersonName = cName,
+                        contactPosition = pos,
+                        contactMobile = mob,
+                        contactSecondaryPhone = secMob,
+                        companyEmail = cEmail,
+                        capturedByAccountHolder = "$activeStaffName (${activeStaff.customRoleLabel})"
+                    )
+                    repository.createCustomer(newCustomer)
+                }
                 showAddCustomerDialog = false
             }
         )
@@ -337,7 +372,9 @@ fun CustomerDirectoryScreen(
             staffName = activeStaffName,
             onDismiss = { customerToRequestDeletion = null },
             onSubmitRequest = { reason ->
-                onRequestDeleteCustomer(customer, reason)
+                coroutineScope.launch {
+                    repository.requestCustomerDeletion(customer.id, reason, activeStaffName)
+                }
                 customerToRequestDeletion = null
             }
         )
@@ -349,7 +386,9 @@ fun CustomerDirectoryScreen(
             customer = customer,
             onDismiss = { customerToDirectDelete = null },
             onConfirmDelete = {
-                onDirectDeleteCustomer(customer)
+                coroutineScope.launch {
+                    repository.deleteCustomerDirectly(customer.id)
+                }
                 customerToDirectDelete = null
             }
         )
@@ -360,10 +399,14 @@ fun CustomerDirectoryScreen(
         AdminDeletionRequestsDialog(
             pendingRequests = pendingDeletionRequests,
             onApproveDelete = { customer ->
-                onApproveDeleteCustomer(customer)
+                coroutineScope.launch {
+                    repository.approveCustomerDeletion(customer.id)
+                }
             },
             onDismissRequest = { customer ->
-                onDismissDeleteRequest(customer)
+                coroutineScope.launch {
+                    repository.dismissCustomerDeletionRequest(customer.id)
+                }
             },
             onClose = { showPendingRequestsDialog = false }
         )

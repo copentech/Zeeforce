@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -11,11 +12,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import com.example.R
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.ui.OrderBookingViewModel
+import androidx.compose.runtime.collectAsState
+import com.example.data.repository.OrderBookingRepository
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
@@ -29,10 +32,11 @@ import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SupplierPerformanceScreen(
-    viewModel: OrderBookingViewModel,
+    repository: OrderBookingRepository,
     onBack: () -> Unit
 ) {
-    val performanceData by viewModel.supplierPerformanceData.collectAsStateWithLifecycle()
+    val performanceData by repository.getSupplierPerformanceData().collectAsState(initial = emptyList())
+    val companyProfile by repository.companyProfile.collectAsState()
     
     val volumeModelProducer = remember { CartesianChartModelProducer.build() }
     val commissionModelProducer = remember { CartesianChartModelProducer.build() }
@@ -52,6 +56,8 @@ fun SupplierPerformanceScreen(
         }
     }
 
+    androidx.activity.compose.BackHandler { onBack() }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -60,6 +66,15 @@ fun SupplierPerformanceScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
+                },
+                actions = {
+                    Image(
+                        painter = painterResource(id = R.drawable.zayed_logo),
+                        contentDescription = "Zayed Corporate Logo",
+                        modifier = Modifier
+                            .size(32.dp)
+                            .padding(end = 12.dp)
+                    )
                 }
             )
         }
@@ -97,7 +112,7 @@ fun SupplierPerformanceScreen(
 
             item {
                 Text(
-                    "Commission Trends ($)",
+                    "Commission Trends (${companyProfile.currencySymbol})",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )

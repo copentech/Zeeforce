@@ -512,23 +512,30 @@ fun AdminPinScreen(
                 Surface(
                     shape = RoundedCornerShape(10.dp),
                     color = cardNavy,
-                    border = BorderStroke(1.dp, imperialGold.copy(alpha = 0.5f)),
+                    border = BorderStroke(1.dp, borderNavy),
                     modifier = Modifier
                         .clickable {
-                            pinInput = "2026"
+                            pinInput = ""
                             errorMessage = null
                         }
-                        .testTag("chip_autofill_pin")
+                        .testTag("chip_clear_pin")
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Icon(
+                            imageVector = Icons.Default.Clear,
+                            contentDescription = null,
+                            tint = Color(0xFF94A3B8),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "Autofill PIN: 2026",
+                            text = "Clear Digits",
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = imperialGold
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF94A3B8)
                         )
                     }
                 }

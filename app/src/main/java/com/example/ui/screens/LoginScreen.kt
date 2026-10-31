@@ -16,12 +16,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.example.data.model.UserRole
-import com.example.data.repository.SalesForceRepository
+import com.example.data.repository.OrderBookingRepository
 import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
-    repository: SalesForceRepository,
+    repository: OrderBookingRepository,
     onLoginSuccess: (role: UserRole, email: String) -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()

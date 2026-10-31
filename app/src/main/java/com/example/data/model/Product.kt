@@ -14,11 +14,11 @@ typealias StockAlertTier = StockLevelAlert
 
 @Entity(tableName = "products")
 data class Product(
-    @PrimaryKey val id: String,
-    val name: String,
-    val category: String,
-    val unitPrice: Double,
-    val currentStock: Int,
+    @PrimaryKey val id: String = java.util.UUID.randomUUID().toString(),
+    val name: String = "",
+    val category: String = "",
+    val unitPrice: Double = 0.0,
+    val currentStock: Int = INFINITE_STOCK,
     val lowStockThreshold: Int = 15,
     val criticalStockThreshold: Int = 5,
     val imageUrl: String = "",
@@ -30,7 +30,7 @@ data class Product(
     val stockQty: Int = currentStock,
     val iconKey: String = "",
     val supplierId: String = "SUPP-00101",
-    val isInfiniteStock: Boolean = false
+    val isInfiniteStock: Boolean = (stockQty < 0 || currentStock < 0)
 ) {
     companion object {
         const val INFINITE_STOCK = -1

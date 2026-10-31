@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,40 +19,73 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.R
 import com.example.data.model.CustomerOrder
 import com.example.data.model.OrderDeliveryStatus
 import com.example.data.model.PaymentMethod
 import com.example.data.model.Product
-import com.example.data.repository.SalesForceRepository
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale
 
+import com.example.data.repository.OrderBookingRepository
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomerAccountScreen(
-    repository: SalesForceRepository,
-    customerEmail: String = "fatima@client.com"
+    repository: OrderBookingRepository,
+    customerEmail: String = ""
 ) {
     val coroutineScope = rememberCoroutineScope()
-    val orders by repository.getOrdersForCustomer(customerEmail).collectAsState(initial = emptyList())
-    val products by repository.getAllProducts().collectAsState(initial = emptyList())
+    val allCustomers by repository.allCustomers.collectAsState(initial = emptyList())
+    val products by repository.allProducts.collectAsState(initial = emptyList())
+    val companyProfile by repository.companyProfile.collectAsState()
+
+    var selectedCustomer by remember(allCustomers, customerEmail) {
+        mutableStateOf(
+            allCustomers.firstOrNull { 
+                it.businessEmail.equals(customerEmail, ignoreCase = true) || 
+                it.companyEmail.equals(customerEmail, ignoreCase = true) 
+            } ?: allCustomers.firstOrNull()
+        )
+    }
+
+    val activeCustomerEmail = selectedCustomer?.businessEmail?.ifEmpty { selectedCustomer?.companyEmail } ?: customerEmail
+    val orders by repository.getOrdersForCustomer(activeCustomerEmail).collectAsState(initial = emptyList())
 
     var showBackorderDialog by remember { mutableStateOf(false) }
     var selectedStockoutProduct by remember { mutableStateOf<Product?>(null) }
+    var showCustomerPickerDropdown by remember { mutableStateOf(false) }
 
     val stockoutProducts = remember(products) {
         products.filter { it.currentStock <= 0 }
     }
 
-    val currencyFormat = NumberFormat.getCurrencyInstance(Locale.US)
+    val currencyFormat = remember(companyProfile.currencyCode) {
+        NumberFormat.getCurrencyInstance().apply {
+            currency = java.util.Currency.getInstance(companyProfile.currencyCode)
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Customer Order & Delivery Portal", fontWeight = FontWeight.Bold) }
+                title = { 
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            painter = painterResource(id = R.drawable.zayed_logo),
+                            contentDescription = "Zayed Corporate Logo",
+                            modifier = Modifier
+                                .size(34.dp)
+                                .padding(end = 8.dp)
+                                .testTag("customer_portal_logo")
+                        )
+                        Text("Customer Order & Delivery Portal", fontWeight = FontWeight.Bold)
+                    }
+                }
             )
         }
     ) { padding ->
@@ -62,6 +96,69 @@ fun CustomerAccountScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Customer Selector Card
+            item {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    modifier = Modifier.fillMaxWidth().testTag("customer_selector_card")
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Active Client Account",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.outline
+                                )
+                                Text(
+                                    text = selectedCustomer?.customerName ?: "No Customer Selected",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "${selectedCustomer?.businessName ?: "Independent Client"} • $activeCustomerEmail",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            if (allCustomers.size > 1) {
+                                Box {
+                                    OutlinedButton(
+                                        onClick = { showCustomerPickerDropdown = true },
+                                        modifier = Modifier.testTag("btn_switch_customer")
+                                    ) {
+                                        Text("Switch Client")
+                                    }
+                                    DropdownMenu(
+                                        expanded = showCustomerPickerDropdown,
+                                        onDismissRequest = { showCustomerPickerDropdown = false }
+                                    ) {
+                                        allCustomers.forEach { cust ->
+                                            DropdownMenuItem(
+                                                text = { 
+                                                    Column {
+                                                        Text(cust.customerName, fontWeight = FontWeight.Bold)
+                                                        Text("${cust.businessName} (${cust.contactMobile})", style = MaterialTheme.typography.labelSmall)
+                                                    }
+                                                },
+                                                onClick = {
+                                                    selectedCustomer = cust
+                                                    showCustomerPickerDropdown = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // Out of Stock Backorder Banner if stockouts exist
             if (stockoutProducts.isNotEmpty()) {
                 item {
@@ -111,12 +208,12 @@ fun CustomerAccountScreen(
                         modifier = Modifier.fillMaxWidth().padding(32.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("No order history found for $customerEmail")
+                        Text("No order history found for ${selectedCustomer?.customerName ?: activeCustomerEmail}")
                     }
                 }
             } else {
-                items(orders) { order ->
-                    CustomerOrderCard(order = order, currencyFormat = currencyFormat)
+                items(orders) { orderWithItems ->
+                    CustomerOrderCard(orderWithItems = orderWithItems, currencyFormat = currencyFormat)
                 }
             }
         }
@@ -154,8 +251,8 @@ fun CustomerAccountScreen(
                             coroutineScope.launch {
                                 repository.requestBackorder(
                                     productName = prod.name,
-                                    customerName = "Fatima Hassan",
-                                    customerEmail = customerEmail
+                                    customerName = selectedCustomer?.customerName ?: "Valued Customer",
+                                    customerEmail = activeCustomerEmail.ifEmpty { "support@zayed.com" }
                                 )
                                 showBackorderDialog = false
                             }
@@ -178,9 +275,19 @@ fun CustomerAccountScreen(
 
 @Composable
 private fun CustomerOrderCard(
-    order: CustomerOrder,
+    orderWithItems: com.example.data.model.OrderWithItems,
     currencyFormat: NumberFormat
 ) {
+    val order = orderWithItems.order
+    val itemsSummary = orderWithItems.items.joinToString(", ") { "${it.quantity}x ${it.productName}" }
+        .ifEmpty { "${order.totalQuantity} items" }
+    val deliveryStatus = when (order.status) {
+        "DELIVERED" -> OrderDeliveryStatus.DELIVERED
+        "IN_TRANSIT" -> OrderDeliveryStatus.DISPATCHED_IN_TRANSIT
+        "SCHEDULED" -> OrderDeliveryStatus.PROCESSED
+        else -> OrderDeliveryStatus.UNPROCESSED
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -194,12 +301,12 @@ private fun CustomerOrderCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Order #${order.id}",
+                    text = "Order #${order.orderNumber}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = currencyFormat.format(order.totalPricing),
+                    text = currencyFormat.format(order.totalAmount),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -207,16 +314,16 @@ private fun CustomerOrderCard(
             }
 
             Spacer(modifier = Modifier.height(4.dp))
-            Text(text = "Items: ${order.itemsSummary}", style = MaterialTheme.typography.bodyMedium)
-            Text(text = "Tracking Code: ${order.trackingNumber}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            Text(text = "Items: $itemsSummary", style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Tracking Code: ${order.stampVerificationCode}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
 
             Spacer(modifier = Modifier.height(12.dp))
 
             // Delivery Status Stepper
-            DeliveryStatusStepper(currentStatus = order.deliveryStatus)
+            DeliveryStatusStepper(currentStatus = deliveryStatus)
 
             Spacer(modifier = Modifier.height(12.dp))
-            Divider()
+            HorizontalDivider()
             Spacer(modifier = Modifier.height(8.dp))
 
             Row(
@@ -225,7 +332,7 @@ private fun CustomerOrderCard(
             ) {
                 Column {
                     Text(text = "Payment Method Available", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-                    Text(text = order.paymentMethod.name.replace("_", " "), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                    Text(text = order.paymentModel, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
                 }
 
                 Column(horizontalAlignment = Alignment.End) {
@@ -233,7 +340,7 @@ private fun CustomerOrderCard(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(imageVector = Icons.Default.Person, contentDescription = "Rep", modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = order.assignedSalesRepName, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                        Text(text = order.accountHolderName, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }

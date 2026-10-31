@@ -35,7 +35,7 @@ import com.example.data.local.SupplierDao
         SupplierOrder::class,
         SupplierOrderItem::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class OrderDatabase : RoomDatabase() {

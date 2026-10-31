@@ -1,12 +1,15 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -38,6 +41,8 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import androidx.activity.compose.BackHandler
+import com.example.data.repository.OrderBookingRepository
 
 data class DailySalesTrend(
     val dayLabel: String,
@@ -62,20 +67,22 @@ data class HourlySalesPoint(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminSalesAnalyticsScreen(
-    viewModel: OrderBookingViewModel,
+    repository: OrderBookingRepository,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val orders by viewModel.orders.collectAsStateWithLifecycle()
+    BackHandler { onBack() }
+    val orders by repository.allOrders.collectAsState(initial = emptyList())
+    val companyProfile by repository.companyProfile.collectAsState()
 
     val imperialGold = Color(0xFFD4AF37)
     val deepNavy = Color(0xFF0F172A)
     val cardNavy = Color(0xFF1E293B)
     val borderNavy = Color(0xFF334155)
 
-    val currencyFormatter = remember {
-        NumberFormat.getCurrencyInstance(Locale("en", "KE")).apply {
-            currency = java.util.Currency.getInstance("KES")
+    val currencyFormatter = remember(companyProfile.currencyCode) {
+        NumberFormat.getCurrencyInstance().apply {
+            currency = java.util.Currency.getInstance(companyProfile.currencyCode)
         }
     }
 
@@ -141,19 +148,28 @@ fun AdminSalesAnalyticsScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            text = "Executive Sales Analytics",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 17.sp,
-                            color = Color.White
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            painter = painterResource(id = R.drawable.zayed_logo),
+                            contentDescription = "Zayed Logo",
+                            modifier = Modifier
+                                .size(34.dp)
+                                .padding(end = 8.dp)
                         )
-                        Text(
-                            text = "7-Day Revenue Trend & Hourly Dispatch Timeline",
-                            fontSize = 11.sp,
-                            color = imperialGold,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        Column {
+                            Text(
+                                text = "Executive Sales Analytics",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 17.sp,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "7-Day Revenue Trend & Hourly Dispatch Timeline",
+                                fontSize = 11.sp,
+                                color = imperialGold,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 },
                 navigationIcon = {

@@ -64,6 +64,10 @@ interface OrderDao {
     fun getOrdersByCustomer(customerId: String, mobile: String = "", customerName: String = ""): Flow<List<OrderWithItems>>
 
     @Transaction
+    @Query("SELECT * FROM orders WHERE customerId = :identifier OR customerMobile = :identifier OR customerName = :identifier OR accountHolderEmail = :identifier ORDER BY createdAt DESC")
+    fun getOrdersByCustomerIdentifier(identifier: String): Flow<List<OrderWithItems>>
+
+    @Transaction
     @Query("SELECT * FROM orders WHERE status = 'REQUESTED' OR status = 'BACKORDER' ORDER BY createdAt DESC")
     fun getBackorderRequests(): Flow<List<OrderWithItems>>
 

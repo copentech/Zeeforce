@@ -21,7 +21,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.data.model.UserRole
-import com.example.data.repository.SalesForceRepository
+import com.example.data.repository.OrderBookingRepository
+import com.example.ui.OrderBookingViewModel
 import com.example.ui.screens.*
 import com.example.ui.theme.ZayedSalesForceTheme
 
@@ -31,7 +32,7 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        val repository = SalesForceRepository.getInstance(applicationContext)
+        val repository = OrderBookingRepository.getInstance(applicationContext)
 
         setContent {
             val systemDark = isSystemInDarkTheme()
@@ -55,53 +56,52 @@ class MainActivity : FragmentActivity() {
 
 @Composable
 fun SalesForceAppContent(
-    repository: SalesForceRepository,
+    repository: OrderBookingRepository,
     isDarkMode: Boolean,
     onToggleDarkMode: (Boolean) -> Unit
 ) {
     val navController = rememberNavController()
-    var currentUserRole by remember { mutableStateOf<UserRole?>(UserRole.ADMIN) }
-    var currentUserEmail by remember { mutableStateOf("admin@zayed.com") }
+    val activeStaff by repository.activeStaff.collectAsState()
+    val currentUserRole = activeStaff.role
+    val currentUserEmail = activeStaff.email
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
     Scaffold(
         bottomBar = {
-            if (currentUserRole != null && currentRoute != "login") {
-                NavigationBar {
-                    NavigationBarItem(
-                        selected = currentRoute == "admin_dashboard",
-                        onClick = { navController.navigate("admin_dashboard") },
-                        icon = { Icon(imageVector = Icons.Default.Dashboard, contentDescription = "Dashboard") },
-                        label = { Text("Admin") },
-                        modifier = Modifier.testTag("nav_item_admin")
-                    )
+            NavigationBar {
+                NavigationBarItem(
+                    selected = currentRoute == "admin_dashboard",
+                    onClick = { navController.navigate("admin_dashboard") },
+                    icon = { Icon(imageVector = Icons.Default.Dashboard, contentDescription = "Dashboard") },
+                    label = { Text("Admin") },
+                    modifier = Modifier.testTag("nav_item_admin")
+                )
 
-                    NavigationBarItem(
-                        selected = currentRoute == "customer_account",
-                        onClick = { navController.navigate("customer_account") },
-                        icon = { Icon(imageVector = Icons.Default.Person, contentDescription = "Customer") },
-                        label = { Text("Customer") },
-                        modifier = Modifier.testTag("nav_item_customer")
-                    )
+                NavigationBarItem(
+                    selected = currentRoute == "customer_account",
+                    onClick = { navController.navigate("customer_account") },
+                    icon = { Icon(imageVector = Icons.Default.Person, contentDescription = "Customer") },
+                    label = { Text("Customer") },
+                    modifier = Modifier.testTag("nav_item_customer")
+                )
 
-                    NavigationBarItem(
-                        selected = currentRoute == "commission_slips",
-                        onClick = { navController.navigate("commission_slips") },
-                        icon = { Icon(imageVector = Icons.Default.Receipt, contentDescription = "Commissions") },
-                        label = { Text("Commissions") },
-                        modifier = Modifier.testTag("nav_item_commissions")
-                    )
+                NavigationBarItem(
+                    selected = currentRoute == "commission_slips",
+                    onClick = { navController.navigate("commission_slips") },
+                    icon = { Icon(imageVector = Icons.Default.Receipt, contentDescription = "Commissions") },
+                    label = { Text("Commissions") },
+                    modifier = Modifier.testTag("nav_item_commissions")
+                )
 
-                    NavigationBarItem(
-                        selected = currentRoute == "settings",
-                        onClick = { navController.navigate("settings") },
-                        icon = { Icon(imageVector = Icons.Default.Settings, contentDescription = "Settings") },
-                        label = { Text("Settings") },
-                        modifier = Modifier.testTag("nav_item_settings")
-                    )
-                }
+                NavigationBarItem(
+                    selected = currentRoute == "settings",
+                    onClick = { navController.navigate("settings") },
+                    icon = { Icon(imageVector = Icons.Default.Settings, contentDescription = "Settings") },
+                    label = { Text("Settings") },
+                    modifier = Modifier.testTag("nav_item_settings")
+                )
             }
         }
     ) { innerPadding ->
@@ -110,30 +110,77 @@ fun SalesForceAppContent(
             startDestination = "admin_dashboard",
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable("login") {
-                LoginScreen(
-                    repository = repository,
-                    onLoginSuccess = { role, email ->
-                        currentUserRole = role
-                        currentUserEmail = email
-                        val destination = when (role) {
-                            UserRole.ADMIN -> "admin_dashboard"
-                            UserRole.SALES_REP -> "commission_slips"
-                            UserRole.CUSTOMER -> "customer_account"
-                            UserRole.SUPPLIER -> "customer_account"
-                        }
-                        navController.navigate(destination) {
-                            popUpTo("login") { inclusive = true }
-                        }
-                    }
-                )
-            }
-
             composable("admin_dashboard") {
                 AdminDashboardScreen(
                     repository = repository,
                     onNavigateToCommissions = { navController.navigate("commission_slips") },
-                    onNavigateToSettings = { navController.navigate("settings") }
+                    onNavigateToSettings = { navController.navigate("settings") },
+                    onNavigateToStaff = { navController.navigate("manage_staff") },
+                    onNavigateToLogs = { navController.navigate("admin_logs") },
+                    onNavigateToAnalytics = { navController.navigate("admin_analytics") },
+                    onNavigateToInventory = { navController.navigate("inventory_catalog") },
+                    onNavigateToCustomers = { navController.navigate("customer_directory") },
+                    onNavigateToDispatch = { navController.navigate("admin_dispatch") },
+                    onNavigateToSuppliers = { navController.navigate("supplier_performance") }
+                )
+            }
+
+            composable("manage_staff") {
+                ManageStaffScreen(
+                    viewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("admin_logs") {
+                val viewModel: OrderBookingViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+                val activities by viewModel.allActivities.collectAsState()
+                val staff by viewModel.allStaff.collectAsState()
+                val activeStaff by viewModel.activeStaff.collectAsState()
+                
+                AdminDashboardModuleScreen(
+                    currentStaff = activeStaff,
+                    activities = activities,
+                    staffList = staff,
+                    onVerifyPin = { pin, onSuccess, onError ->
+                        viewModel.verifyAdminPinForDashboard(pin, onSuccess, onError)
+                    },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("admin_analytics") {
+                AdminSalesAnalyticsScreen(
+                    repository = repository,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("inventory_catalog") {
+                InventoryCatalogScreen(
+                    repository = repository,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("customer_directory") {
+                CustomerDirectoryScreen(
+                    repository = repository,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("admin_dispatch") {
+                AdminDispatchScreen(
+                    repository = repository,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("supplier_performance") {
+                SupplierPerformanceScreen(
+                    repository = repository,
+                    onBack = { navController.popBackStack() }
                 )
             }
 
@@ -147,8 +194,8 @@ fun SalesForceAppContent(
             composable("commission_slips") {
                 CommissionSlipsScreen(
                     repository = repository,
-                    salesRepId = "rep_101",
-                    salesRepName = "Ahmad Al-Mansoor"
+                    salesRepId = activeStaff.id,
+                    salesRepName = activeStaff.name
                 )
             }
 
